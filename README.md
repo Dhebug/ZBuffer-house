@@ -13,3 +13,8 @@ The scene is interactive and can be manipulated using the keyboard.
 - Up and Down arrows to rotate along the Phi angle
 - 0 to 9 to change the distance
 - F1 to F4 for presets
+
+Here is what that looks like for the ones wondering (click on the image to see the video on youtube):
+
+[![ZBuffer House](https://img.youtube.com/vi/WYMkORDYIag/0.jpg)](https://www.youtube.com/watch?v=WYMkORDYIag)
+
