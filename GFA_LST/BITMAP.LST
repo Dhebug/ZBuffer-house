@@ -1,0 +1,361 @@
+'
+'
+'                     Cube en 3D bitmap en GFA...
+'
+'                        ½ 1993/94 Dbug II
+'
+'
+physique%=XBIOS(2)
+logique%=XBIOS(3)
+st_rez&=&HFFFF AND XBIOS(4,-1)
+falcon_rez&=&HFFFF AND XBIOS(88,-1)
+'
+DEFMOUSE 0
+HIDEM
+OUT 4,18
+'
+RESERVE 100000
+ON ERROR GOSUB fin
+ON BREAK GOSUB fin
+buffer%=MALLOC(128000*3+4)
+IF buffer%<=0
+  PRINT "Gasp... Un blem !"
+  ~INP(2)
+  EDIT
+ENDIF
+'
+e1%=(buffer%+4) AND (&HFFFFFFFF-3)
+e2%=e1%+128000
+image%=e2%+128000
+'
+OPEN "i",#1,"e:\PROJETS\BITMAP3d\BITMAP.GFX"
+BGET #1,image%,LOF(#1)
+CLOSE
+'
+~XBIOS(5,L:e1%,L:e2%,W:3,W:4+32)
+'
+'
+'
+'
+main
+'
+ERROR 0
+fin
+PROCEDURE fin
+  ~XBIOS(5,L:physique%,L:logique%,W:st_rez&,W:falcon_rez&)
+  ~MFREE(buffer%)
+  OUT 4,8
+  IF ERR<>0
+    PRINT ERR
+    ERROR ERR
+    ~INP(2)
+  ENDIF
+  EDIT
+RETURN
+'
+'
+'
+'
+'
+PROCEDURE main
+  DIM minx&(199)
+  DIM maxx&(199)
+  '
+  DIM x1&(199),y1&(199),x2&(199),y2&(199)
+  DIM dx&(3),dy&(3)
+  DIM sx&(3),sy&(3)
+  DIM table%(199)
+  DIM table0%(199)
+  DIM table1%(199)
+  DIM table2%(199)
+  DIM table3%(199)
+  DIM table4%(199)
+  DIM table5%(199)
+  '
+  '
+  RESTORE points
+  READ nb_point&
+  DIM xo&(nb_point&),yo&(nb_point&),zo&(nb_point&)
+  DIM z(nb_point&)
+  FOR point&=0 TO PRED(nb_point&)
+    READ xo&(point&),yo&(point&),zo&(point&)
+  NEXT point&
+  '
+  RESTORE faces
+  READ nb_face&
+  DIM face|(nb_face&,3)                 ! Faces … 4 points au maximum...
+  FOR face&=0 TO PRED(nb_face&)
+    FOR point&=0 TO 3
+      READ p
+      face|(face&,point&)=PRED(p)
+    NEXT point&
+  NEXT face&
+  '
+  DIM x&(nb_point&),y&(nb_point&)
+  '
+  CLR phi&,the&,rot1&,rot2&,rot3&
+  sx&(0)=81
+  sx&(1)=81
+  sx&(2)=162
+  sx&(3)=162
+  '
+  sy&(0)=0
+  sy&(1)=86
+  sy&(2)=86
+  sy&(3)=0
+  '
+  '
+  ' Pr‚calcule des tables d'offset pour les 6 textures possibles
+  '
+  '
+  FOR i=0 TO 199
+    table%(i)=image%+i*160+(160*84)*0
+    table0%(i)=image%+i*160+(160*84)*0
+    table1%(i)=image%+i*160+(160*84)*1
+    table2%(i)=image%+i*160+(160*84)*2
+    table3%(i)=image%+i*160+(160*84)*3
+    table4%(i)=image%+i*160+(160*84)*4
+    table5%(i)=image%+i*160+(160*84)*5
+  NEXT i
+  '
+  '
+  ABSOLUTE xx&,V:xx%
+  ABSOLUTE yy&,V:yy%
+  '
+  '
+  '  ~XBIOS(5,L:e2%,L:e1%,TRUE)
+  '
+  ' Initialise la 3D
+  '
+  rayon=80
+  d&=500  !1000
+  rho&=40 !300   plus rho est faible, plus la perspective est forte
+  the&=30
+  phi&=10
+  cxx&=160
+  cyy&=100
+  '
+  zmin=9999
+  zmax=-9999
+  '
+  CLS
+  DO
+    t1=TIMER
+    '
+    '
+    ' Efface l'‚cran et initialise le Z-Buffer
+    '
+    '
+    CLS
+    '
+    '
+    ' Calcule la matrice de rotation 3D
+    '
+    st=SINQ(the&)
+    sp=SINQ(phi&)
+    ct=COSQ(the&)
+    cp=COSQ(phi&)
+    '
+    cs=ct*sp
+    ss=st*sp
+    zz=ct*cp
+    sc=st*cp
+    '
+    ADD the&,5
+    ADD phi&,3
+    '
+    '
+    ' Conversion 3d espace -> 3d observateur
+    ' Tous les points sont convertis en coordonn‚es plan
+    '
+    '
+    FOR point&=0 TO PRED(nb_point&)
+      x1=xo&(point&)
+      y1=yo&(point&)
+      z1=zo&(point&)
+      '
+      xr=-x1*st+y1*ct
+      yr=-x1*cs-y1*ss+z1*cp
+      zr=-x1*zz-y1*sc-z1*sp+rho&
+      '
+      x&(point&)=ADD(cxx&,(d&*xr)/zr)
+      y&(point&)=SUB(cyy&,(d&*yr)/zr)
+      z(point&)=zr*10
+    NEXT point&
+    '
+    '    TRON
+    '    GOTO d
+    '
+    FOR face|=0 TO PRED(nb_face&)
+      '
+      ' Initialise le tableau min/max
+      '
+      ARRAYFILL minx&(),9999
+      ARRAYFILL maxx&(),-9999
+      '
+      ' Coordonn‚es du polygone
+      '
+      FOR point|=0 TO 3
+        dx&(point|)=x&(face|(face|,point|))
+        dy&(point|)=y&(face|(face|,point|))
+      NEXT point|
+      '
+      SELECT (face| MOD 3)
+      CASE 0
+        LONG{*table%()}=LONG{*table0%()}
+      CASE 1
+        LONG{*table%()}=LONG{*table1%()}
+      CASE 2
+        LONG{*table%()}=LONG{*table2%()}
+      CASE 3
+        LONG{*table%()}=LONG{*table3%()}
+      CASE 4
+        LONG{*table%()}=LONG{*table4%()}
+      CASE 5
+        LONG{*table%()}=LONG{*table5%()}
+      DEFAULT
+        LONG{*table%()}=LONG{*table0%()}
+      ENDSELECT
+      LONG{*table%()}=LONG{*table0%()}
+      '
+      ' D‚termine le contour du polygone
+      '
+      calcule_segment(0,1)
+      calcule_segment(1,2)
+      calcule_segment(2,3)
+      calcule_segment(3,0)
+      '
+      ' Affichage du bloc bitmap
+      '
+      '      GOTO z
+      base%=e1%
+      FOR y&=0 TO 199
+        IF maxx&(y&)>=0
+          x1&=minx&(y&)
+          x2&=maxx&(y&)
+          IF x1&<>x2&
+            xx1&=x1&(y&)
+            yy1&=y1&(y&)
+            xx2&=x2&(y&)
+            yy2&=y2&(y&)
+            largeur_dest&=SUB(x2&,x1&)
+            '
+            isx%=DIV(SWAP(SUB(xx2&,xx1&)),largeur_dest&)
+            isy%=DIV(SWAP(SUB(yy2&,yy1&)),largeur_dest&)
+            '
+            xx%=SWAP(xx1&)
+            yy%=SWAP(yy1&)
+            '
+            FOR x&=SUCC(x1&) TO x2&
+              CARD{ADD(base%,x&*2)}=CARD{ADD(xx&*2,table%(yy&))}
+              ADD xx%,isx%
+              ADD yy%,isy%
+            NEXT x&
+            '
+          ENDIF
+        ENDIF
+        ADD base%,640
+      NEXT y&
+    z:
+    NEXT face|
+  d:
+    PRINT zmin,zmax
+    ~XBIOS(5,L:e2%,L:e1%,TRUE)
+    VSYNC
+    SWAP e1%,e2%
+    t2=TIMER
+    PRINT AT(1,1);t2-t1;"   "
+  LOOP UNTIL INKEY$=""
+  '
+RETURN
+> PROCEDURE calcule_segment(ps&,pd&)
+  sx1&=sx&(ps&)
+  sy1&=sy&(ps&)
+  sx2&=sx&(pd&)
+  sy2&=sy&(pd&)
+  '
+  dx1&=dx&(ps&)
+  dy1&=dy&(ps&)
+  dx2&=dx&(pd&)
+  dy2&=dy&(pd&)
+  '
+  '  LINE dx1&,dy1&,dx2&,dy2&
+  '  GOTO e
+  IF dy1&>dy2&
+    SWAP dx1&,dx2&
+    SWAP dy1&,dy2&
+    SWAP sx1&,sx2&
+    SWAP sy1&,sy2&
+  ENDIF
+  '
+  d_hauteur&=SUB(dy2&,dy1&)
+  '
+  IF d_hauteur&<>0
+    idx%=DIV(SWAP(SUB(dx2&,dx1&)),d_hauteur&)
+    isx%=DIV(SWAP(SUB(sx2&,sx1&)),d_hauteur&)
+    isy%=DIV(SWAP(SUB(sy2&,sy1&)),d_hauteur&)
+    '
+    ABSOLUTE dx&,V:dx%
+    ABSOLUTE sx&,V:sx%
+    ABSOLUTE sy&,V:sy%
+    '
+    dx%=SWAP(dx1&)
+    sx%=SWAP(sx1&)
+    sy%=SWAP(sy1&)
+    '
+    FOR dy&=dy1& TO dy2&
+      IF dx&<minx&(dy&)
+        minx&(dy&)=dx&
+        x1&(dy&)=sx&
+        y1&(dy&)=sy&
+      ENDIF
+      IF dx&>maxx&(dy&)
+        maxx&(dy&)=dx&
+        x2&(dy&)=sx&
+        y2&(dy&)=sy&
+      ENDIF
+      ADD dx%,idx%
+      ADD sx%,isx%
+      ADD sy%,isy%
+    NEXT dy&
+  ENDIF
+e:
+  '
+RETURN
+'
+'
+'
+'                  | +5 y)
+'                  |
+'                  |
+'              6-------7
+'             /|      /|
+'            5-------8 |
+'            | |     | |
+'            | 2-----|-3
+' -5 (x)-----|/      |/ --------------------- +5 (x)
+'            1-------4
+'               /
+'              /
+'             /
+'           +5 (z)
+'
+points:
+DATA 8
+DATA -1,-1,1
+DATA -1,-1,-1
+DATA 1,-1,-1
+DATA 1,-1,1
+DATA -1,1,1
+DATA -1,1,-1
+DATA 1,1,-1
+DATA 1,1,1
+'
+faces:
+DATA 6
+DATA 1,4,8,5
+DATA 4,3,7,8
+DATA 3,2,6,7
+DATA 2,1,5,6
+DATA 6,5,8,7
+DATA 1,2,3,4

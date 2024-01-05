@@ -1,0 +1,189 @@
+RESTORE couleurs
+FOR i=0 TO 15
+  READ a
+  VSETCOLOR i,a
+NEXT i
+'
+SETCOLOR 0,7,7,7
+a$=STRING$(32767,0)
+b$=STRING$(32767,0)
+adr=(V:a$ AND &HFFFFFF00)+256
+log=(V:b$ AND &HFFFFFF00)+256
+VOID XBIOS(5,L:adr,L:log,W:0)
+'
+RESTORE debut_data
+min_x=9999
+max_x=-9999
+min_y=9999
+max_y=-9999
+n=-1
+DO
+  READ co
+  EXIT IF co=9999
+  INC n
+  READ x1,y1,z1,x2,y2,z2,x3,y3,z3
+  IF MIN(x1,x2,x3)<min_x
+    min_x=MIN(x1,x2,x3)
+  ENDIF
+  IF MIN(y1,y2,y3)<min_y
+    min_y=MIN(y1,y2,y3)
+  ENDIF
+  IF MAX(x1,x2,x3)>max_x
+    max_x=MAX(x1,x2,x3)
+  ENDIF
+  IF MAX(y1,y2,y3)>max_y
+    max_y=MIN(y1,y2,y3)
+  ENDIF
+LOOP
+'
+milieu_x=(max_x-min_x)/2
+milieu_y=(max_y-min_y)/2
+'
+DIM co(n),cr(n)
+DIM x(3),y(3)
+DIM xo(n,2),yo(n,2),zo(n,2)   ! coordonn‚es 3d d'origine par face
+DIM xr(n,2),yr(n,2),zr(n,2)   ! coordonn‚es 3d r‚sultantes par face
+DIM xx(n,2),yy(n,2)           ! coordonn‚es 2d r‚sultantes par face
+'
+phi=270
+aphi=6
+the=270
+athe=2
+rho=200 !300   plus rho est faible, plus la perspective est forte
+d=350*10
+centre_x=160
+centre_y=100
+'
+'
+' Charge les coordon‚es
+'
+'
+RESTORE debut_data
+FOR i=0 TO n
+  READ co(i)
+  FOR j=0 TO 2
+    READ xo(i,j),yo(i,j),zo(i,j)
+    SUB xo(i,j),milieu_x
+    SUB yo(i,j),milieu_y
+  NEXT j
+NEXT i
+'
+DO
+  st=SIN(RAD(the))
+  sp=SIN(RAD(phi))
+  tc=COS(RAD(the))
+  cp=COS(RAD(phi))
+  '
+  ADD the,10 !RND*7
+  ADD phi,10 !RND*7
+  '
+  cs=tc*sp
+  ss=st*sp
+  zz=tc*cp
+  sc=st*cp
+  '
+  ' Conversion 3d -> Plan
+  '
+  FOR q=0 TO n
+    cr(q)=co(q)
+    FOR i=0 TO 2
+      x1=xo(q,i)
+      y1=yo(q,i)
+      z1=zo(q,i)
+      '
+      xr(q,i)=-x1*st+y1*tc
+      yr(q,i)=-x1*cs-y1*ss+z1*cp
+      zr(q,i)=-x1*zz-y1*sc-z1*sp+rho
+    NEXT i
+  NEXT q
+  '
+  '  Trie les vecteurs
+  '
+  FOR i=0 TO n
+    FOR j=i TO n
+      IF (zr(j,0)+zr(j,1)+zr(j,2))/3>(zr(i,0)+zr(i,1)+zr(i,2))/3
+        IF (zr(j,0)+zr(j,1)+zr(j,2))/3=>(zr(i,0)+zr(i,1)+zr(i,2))/3
+          FOR t=0 TO 2
+            SWAP xr(j,t),xr(i,t)
+            SWAP yr(j,t),yr(i,t)
+            SWAP zr(j,t),zr(i,t)
+          NEXT t
+          SWAP cr(j),cr(i)
+        ENDIF
+      ENDIF
+    NEXT j
+  NEXT i
+  '
+  ' Affichage final
+  '
+  CLS
+  FOR q=0 TO n
+    FOR i=0 TO 2
+      x(i)=centre_x+(d*xr(q,i))/zr(q,i)
+      y(i)=centre_y-(d*yr(q,i))/zr(q,i)
+    NEXT i
+    DEFFILL cr(q)
+    draw_poly
+  NEXT q
+  '
+  SWAP adr,log
+  VOID XBIOS(5,L:adr,L:log,W:-1)
+  VSYNC
+  EXIT IF INKEY$<>""
+LOOP
+EDIT
+'
+'
+' POLYFILL 3,x(),y()
+'
+PROCEDURE draw_poly
+RETURN
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+couleurs:
+DATA &h000,&h111,&h222,&h333,&h444,&h555,&h666,&h777
+DATA &h100,&h200,&h300,&h400,&h500,&h600,&h700,&h010
+'
+'
+'
+'
+'
+' Datas du logo TTZP 3D
+'
+'
+debut_data:
+'
+DATA 2
+DATA 0,0,1
+DATA -1,0,-1
+DATA 1,-1,-1
+' DATA 9999
+'
+DATA 4
+DATA 0,0,1
+DATA 1,-1,-1
+DATA 1,1,-1
+'
+DATA 1
+DATA 0,0,1
+DATA 1,1,-1
+DATA -1,0,-1
+'
+DATA 3
+DATA -1,0,-1
+DATA 1,-1,-1
+DATA 1,1,-1
+'
+'
+DATA 9999
+'
+'

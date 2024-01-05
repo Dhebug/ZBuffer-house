@@ -1,0 +1,146 @@
+' t
+'
+'
+'                     Cube 3D en GFA...
+'
+'       ½ 1991/92 Dbug II pour le Kromix-Multipart screen
+'
+'
+OPTION BASE 1
+DIM x&(8),y&(8)
+DIM xo&(8),yo&(8),zo&(8)
+DIM p|(6,5)
+'
+old_rez&=XBIOS(4)
+old_video%=XBIOS(2)
+'
+e1$=STRING$(32767,0)
+e2$=STRING$(32767,0)
+'
+e1%=(V:e1$ AND &HFFFFFF00)+256
+e2%=(V:e2$ AND &HFFFFFF00)+256
+'
+FOR points=1 TO 8
+  READ xo&(points),yo&(points),zo&(points)
+NEXT points
+'
+FOR faces=1 TO 6
+  FOR point=1 TO 4
+    READ p|(faces,point)
+  NEXT point
+  p|(faces,5)=p|(faces,1)
+NEXT faces
+'
+'
+CLR phi&,the&,rot1&,rot2&,rot3&
+'
+rho&=20 !300   plus rho est faible, plus la perspective est forte
+'
+'
+' Calcul des coordonnes 3D-2D
+'
+'
+OUT 4,18
+DO
+  cxx&=160+120*COSQ(rot&)*COSQ(rot2&)
+  cyy&=100+90*SINQ(rot&)*SINQ(rot2&)
+  '
+  d&=100*COSQ(rot3&)
+  '
+  st=SINQ(the&)
+  sp=SINQ(phi&)
+  ct=COSQ(the&)
+  cp=COSQ(phi&)
+  '
+  ADD rot&,1
+  ADD rot2&,2
+  ADD rot3&,3
+  ADD the&,8
+  ADD phi&,4
+  '
+  cs=ct*sp
+  ss=st*sp
+  zz=ct*cp
+  sc=st*cp
+  '
+  FOR q|=1 TO 8
+    x&=-xo&(q|)
+    y&=yo&(q|)
+    z&=zo&(q|)
+    zr=x&*zz-y&*sc-z&*sp+rho&
+    x&(q|)=cxx&+(d&*(x&*st+y&*ct))/zr
+    y&(q|)=cyy&-(d&*(x&*cs-y&*ss+z&*cp))/zr
+  NEXT q|
+  '
+  FOR faces|=1 TO 6
+    FOR i|=1 TO 4
+      LINE x&(p|(faces|,i|)),y&(p|(faces|,i|)),x&(p|(faces|,SUCC(i|))),y&(p|(faces|,SUCC(i|)))
+    NEXT i|
+  NEXT faces|
+  '
+  end_time=TIMER
+  PRINT AT(1,1);(end_time-deb_time)/4
+  ~XBIOS(5,L:e1%,L:e2%,FALSE)
+  VSYNC
+  deb_time=TIMER
+  '
+  SWAP e1%,e2%
+  EXIT IF INKEY$<>""
+LOOP
+OUT 4,8
+~XBIOS(5,L:old_video%,L:old_video%,old_rez&)
+'
+EDIT
+'
+'
+points:
+DATA -5,-5,+5
+DATA -5,-5,-5
+DATA +5,-5,-5
+DATA +5,-5,+5
+'
+DATA -5,+5,+5
+DATA -5,+5,-5
+DATA +5,+5,-5
+DATA +5,+5,+5
+'
+'                  | +5 y)
+'                  |
+'                  |
+'              6-------7
+'             /|      /|
+'            5-------8 |
+'            | |     | |
+'            | 2-----|-3
+' -5 (x)-----|/      |/ --------------------- +5 (x)
+'            1---- --4
+'               /
+'              /
+'             /
+'           +5 (z)
+faces:
+DATA 1,2,3,4
+DATA 5,6,7,8
+DATA 1,2,6,5
+DATA 1,4,8,5
+DATA 4,3,7,8
+DATA 2,3,7,6
+'
+'
+'   Proc‚dure de test de dur‚e d'instructions
+'
+'
+PROCEDURE t
+  DIM xx&(50)
+  x&=5
+  debut=TIMER
+  FOR i&=1 TO 5000
+    '
+    '
+    '
+  NEXT i&
+  duree=TIMER-debut
+  PRINT duree
+  ~INP(2)
+  EDIT
+RETURN

@@ -1,0 +1,253 @@
+'
+' Affichage d'un polygone mapp‚, avec clipping.
+'
+physique%=XBIOS(2)
+logique%=XBIOS(3)
+st_rez&=&HFFFF AND XBIOS(4,-1)
+falcon_rez&=&HFFFF AND XBIOS(88,-1)
+'
+DEFMOUSE 0
+HIDEM
+OUT 4,18
+'
+RESERVE 100000
+ON ERROR GOSUB fin
+ON BREAK GOSUB fin
+buffer%=MALLOC(256004)
+IF buffer%<=0
+  PRINT "Gasp... Un blem !"
+  ~INP(2)
+  EDIT
+ENDIF
+'
+'
+ecran%=(buffer%+4) AND (&HFFFFFFFF-3)
+image%=ecran%+128000
+'
+OPEN "i",#1,"e:\PROJETS\BITMAP3d\WALLSET.TG1"
+SEEK #1,18
+BGET #1,image%,128000
+CLOSE
+'
+~XBIOS(5,L:ecran%,L:ecran%,W:3,W:4+32)
+'
+'
+'
+'
+main
+'
+ERROR 0
+fin
+> PROCEDURE fin
+  IF ERR<>0
+    ON ERROR GOSUB cont
+    PRINT ERR
+    ERROR ERR
+    ~INP(2)
+  ENDIF
+  ~XBIOS(5,L:physique%,L:logique%,W:st_rez&,W:falcon_rez&)
+  ~MFREE(buffer%)
+  OUT 4,8
+  EDIT
+RETURN
+'
+'
+'
+'
+'
+PROCEDURE main
+  DIM minx&(199)
+  DIM maxx&(199)
+  '
+  DIM x1&(199),y1&(199),x2&(199),y2&(199)
+  DIM dx&(3),dy&(3)
+  DIM sx&(3),sy&(3)
+  DIM table%(199)
+  '
+  sx&(0)=81
+  sx&(1)=81
+  sx&(2)=162
+  sx&(3)=162
+  '
+  sy&(0)=0
+  sy&(1)=86
+  sy&(2)=86
+  sy&(3)=0
+  '
+  '
+  FOR i=0 TO 199
+    table%(i)=image%+i*640
+  NEXT i
+  '
+  ABSOLUTE xx&,V:xx%
+  ABSOLUTE yy&,V:yy%
+  '
+  rayon=30
+  '
+  dx=100
+  dy=100
+  '
+  clip_haut=70
+  clip_bas=150
+  '
+  clip_gauche=120
+  clip_droit=210
+  '
+  ccx=clip_gauche+(clip_droit-clip_gauche)/2
+  ccy=clip_haut+(clip_bas-clip_haut)/2
+  '
+  DO
+    CLS
+    COLOR 7
+    BOX clip_gauche,clip_haut,clip_droit,clip_bas
+    t1=TIMER
+    '
+    ' Initialise le tableau min/max
+    '
+    ARRAYFILL minx&(),9999
+    ARRAYFILL maxx&(),-9999
+    '
+    ' Coordonn‚es du polygone
+    '
+    cx=ccx+50*COSQ(b)*COSQ(c)
+    cy=ccy+50*SINQ(d)*SINQ(e)
+    '
+    INC b
+    ADD c,2
+    INC d
+    ADD e,3
+    FOR i=0 TO 3
+      dx&(i)=ADD(cx,rayon*COSQ(angle+i*90))
+      dy&(i)=ADD(cy,rayon*SINQ(angle+i*90))
+    NEXT i
+    ADD angle,2
+    '
+    ' D‚termine le contour du polygone
+    '
+    calcule_segment(0,1)
+    calcule_segment(1,2)
+    calcule_segment(2,3)
+    calcule_segment(3,0)
+    '
+    ' Affichage du bloc bitmap
+    '
+    base%=ecran%
+    FOR y&=0 TO 199
+      IF maxx&(y&)>=0
+        x1&=minx&(y&)
+        x2&=maxx&(y&)
+        IF x1&<>x2&
+          '          TRON
+          xx1&=x1&(y&)
+          yy1&=y1&(y&)
+          xx2&=x2&(y&)
+          yy2&=y2&(y&)
+          largeur_dest&=SUB(x2&,x1&)+1
+          '
+          isx%=DIV(SWAP(SUB(xx2&,xx1&)),largeur_dest&)
+          isy%=DIV(SWAP(SUB(yy2&,yy1&)),largeur_dest&)
+          '
+          xx%=SWAP(xx1&)
+          yy%=SWAP(yy1&)
+          '
+          IF x1&<clip_gauche
+            FOR x&=x1& TO clip_gauche
+              ADD xx%,isx%
+              ADD yy%,isy%
+            NEXT x&
+            x1&=clip_gauche
+          ENDIF
+          IF x2&>clip_droit
+            x2&=clip_droit
+          ENDIF
+          '         TROFF
+          FOR x&=x1& TO x2&
+            CARD{ADD(base%,x&*2)}=CARD{ADD(xx&*2,table%(yy&))}
+            ADD xx%,isx%
+            ADD yy%,isy%
+          NEXT x&
+          '
+        ENDIF
+      ENDIF
+      ADD base%,640
+    NEXT y&
+    t2=TIMER
+    PRINT AT(1,1);t2-t1;"   "
+    k$=INKEY$
+    SELECT k$
+    CASE "-"
+      DEC rayon
+    CASE "+"
+      INC rayon
+    CASE "*"
+      ~INP(2)
+    ENDSELECT
+  LOOP UNTIL k$=""
+  '
+RETURN
+'
+'
+'
+'
+> PROCEDURE calcule_segment(ps&,pd&)
+  sx1&=sx&(ps&)
+  sy1&=sy&(ps&)
+  sx2&=sx&(pd&)
+  sy2&=sy&(pd&)
+  '
+  dx1&=dx&(ps&)
+  dy1&=dy&(ps&)
+  dx2&=dx&(pd&)
+  dy2&=dy&(pd&)
+  '
+  IF dy1&>dy2&
+    SWAP dx1&,dx2&
+    SWAP dy1&,dy2&
+    SWAP sx1&,sx2&
+    SWAP sy1&,sy2&
+  ENDIF
+  '
+  IF dy2&>clip_haut AND dy1&<clip_bas
+    d_hauteur&=SUB(dy2&,dy1&)+1
+    '
+    idx%=DIV(SWAP(SUB(dx2&,dx1&)),d_hauteur&)
+    isx%=DIV(SWAP(SUB(sx2&,sx1&)),d_hauteur&)
+    isy%=DIV(SWAP(SUB(sy2&,sy1&)),d_hauteur&)
+    '
+    ABSOLUTE dx&,V:dx%
+    ABSOLUTE sx&,V:sx%
+    ABSOLUTE sy&,V:sy%
+    '
+    dx%=SWAP(dx1&)
+    sx%=SWAP(sx1&)
+    sy%=SWAP(sy1&)
+    '
+    IF dy1&<clip_haut
+      FOR dy&=dy1& TO PRED(clip_haut)
+        ADD dx%,idx%
+        ADD sx%,isx%
+        ADD sy%,isy%
+      NEXT dy&
+      dy1&=clip_haut
+    ENDIF
+    IF dy2&>clip_bas
+      dy2&=clip_bas
+    ENDIF
+    '
+    FOR dy&=dy1& TO dy2&
+      IF dx&<minx&(dy&)
+        minx&(dy&)=dx&
+        x1&(dy&)=sx&
+        y1&(dy&)=sy&
+      ENDIF
+      IF dx&>maxx&(dy&)
+        maxx&(dy&)=dx&
+        x2&(dy&)=sx&
+        y2&(dy&)=sy&
+      ENDIF
+      ADD dx%,idx%
+      ADD sx%,isx%
+      ADD sy%,isy%
+    NEXT dy&
+  ENDIF
+RETURN

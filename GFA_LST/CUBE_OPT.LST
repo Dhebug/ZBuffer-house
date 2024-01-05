@@ -1,0 +1,224 @@
+' t
+'
+'
+'                     Cube 3D en GFA...
+'
+'       ½ 1991/92 Dbug II pour le Kromix-Multipart screen
+'
+'
+OPTION BASE 1
+DIM x&(8),y&(8)
+DIM p1|(12),p2|(12)
+'
+' On passe en superviseur et on sauve tout
+'
+old_pile%=GEMDOS(&H20,L:FALSE)
+old_rez&=XBIOS(4)
+old_video%=XBIOS(2)
+old_palette$=SPACE$(32)
+FOR i=0 TO 7
+  LONG{V:old_palette$+i*4}=LONG{&HFF8240+i*4}
+NEXT i
+'
+' Fading au noir
+'
+FOR i=&H777 TO 0 STEP &HFFFFFEEF
+  pal$=STRING$(16,MKI$(i))
+  ~XBIOS(6,L:V:pal$)
+  VSYNC
+  VSYNC
+  VSYNC
+NEXT i
+'
+' Image de fonds
+'
+CLS
+PRINT "b1"
+PRINT "pDbug is proud to present:q"
+PRINT "-------------------------"
+PRINT
+PRINT "The mega 3d demo !"
+PRINT
+PRINT "All coding done by Dbug II"
+PRINT "Fabulous graphixx by GFA 3"
+PRINT "Superb animation from COSQ & SINQ"
+PRINT
+PRINT "Enjoy It !"
+PRINT
+PRINT "All the animation is in a Real Time"
+PRINT "Special Conception..."
+PRINT "It can be slower but I don't like"
+PRINT "to do LAME things..."
+PRINT
+PRINT "  - ½ 1992 ®NeXT Quality Only¯ -"
+PRINT
+PRINT "pMOVE THE MOUSE !!! And press the buttonsq"
+'
+DPOKE &HFF8242,&H70
+DPOKE &HFF825E,&H700
+'
+e1$=STRING$(32767,0)
+e2$=STRING$(32767,0)
+'
+e1%=(V:e1$ AND &HFFFFFF00)+256
+e2%=(V:e2$ AND &HFFFFFF00)+256
+'
+~XBIOS(5,L:e2%,L:e1%,TRUE)
+BMOVE old_video%,e1%,32000
+BMOVE old_video%,e2%,32000
+'
+FOR lignes=1 TO 12
+  READ p1|(lignes)
+  READ p2|(lignes)
+NEXT lignes
+'
+'
+CLR phi&,the&,rot1&,rot2&,rot3&
+'
+rho&=40 !300   plus rho est faible, plus la perspective est forte
+HIDEM
+'
+'
+' Calcul des coordonnes 3D-2D
+'
+'
+d&=1000
+MOUSE cxx&,cyy&,k&
+'
+DO
+  MOUSE x&,y&,k&
+  '
+  SELECT k&
+  CASE 0
+    the&=x&
+    phi&=y&
+    '
+    st=SINQ(the&)
+    sp=SINQ(phi&)
+    ct=COSQ(the&)
+    cp=COSQ(phi&)
+    '
+    cs=ct*sp
+    ss=st*sp
+    zz=ct*cp
+    sc=st*cp
+  CASE 1
+    cxx&=x&
+    cyy&=y&
+  CASE 2
+    d&=1+x&*9+y&
+  ENDSELECT
+  '
+  zr=(-zz+sc-sp+rho&)/d&
+  x&(1)=(-st-ct)/zr
+  y&(1)=-(-cs+ss+cp)/zr
+  '
+  zr=(-zz+sc+sp+rho&)/d&
+  x&(2)=(-st-ct)/zr
+  y&(2)=-(-cs+ss-cp)/zr
+  '
+  zr=(zz+sc+sp+rho&)/d&
+  x&(3)=(st-ct)/zr
+  y&(3)=-(cs+ss-cp)/zr
+  '
+  zr=(zz+sc-sp+rho&)/d&
+  x&(4)=(st-ct)/zr
+  y&(4)=-(cs+ss+cp)/zr
+  '
+  zr=(-zz-sc-sp+rho&)/d&
+  x&(5)=(-st+ct)/zr
+  y&(5)=-(-cs-ss+cp)/zr
+  '
+  zr=(-zz-sc+sp+rho&)/d&
+  x&(6)=(-st+ct)/zr
+  y&(6)=-(-cs-ss-cp)/zr
+  '
+  zr=(zz-sc+sp+rho&)/d&
+  x&(7)=(st+ct)/zr
+  y&(7)=-(cs-ss-cp)/zr
+  '
+  zr=(zz-sc-sp+rho&)/d&
+  x&(8)=(st+ct)/zr
+  y&(8)=-(cs-ss+cp)/zr
+  '
+  FOR i=1 TO 12
+    LINE cxx&+x&(p1|(i)),cyy&+y&(p1|(i)),cxx&+x&(p2|(i)),cyy&+y&(p2|(i))
+  NEXT i
+  '
+  '  end_time=TIMER
+  '  PRINT AT(1,1);(end_time-deb_time)/4
+  ~XBIOS(5,L:e1%,L:e2%,TRUE)
+  VSYNC
+  BMOVE old_video%,e1%,32000
+  '  deb_time=TIMER
+  '
+  SWAP e1%,e2%
+  EXIT IF INKEY$<>""
+LOOP
+~XBIOS(5,L:old_video%,L:old_video%,old_rez&)
+'
+' Fading au blanc
+'
+CLS
+FOR i=0 TO &H777 STEP &H111
+  pal$=STRING$(16,MKI$(i))
+  ~XBIOS(6,L:V:pal$)
+  VSYNC
+  VSYNC
+  VSYNC
+NEXT i
+~XBIOS(6,L:V:old_palette$)
+~GEMDOS(&H20,L:old_pile%)
+'
+SHOWM
+PAUSE 10
+EDIT
+'
+'
+'                  | +5 y)
+'                  |
+'                  |
+'              6-------7
+'             /|      /|
+'            5-------8 |
+'            | |     | |
+'            | 2-----|-3
+' -5 (x)-----|/      |/ --------------------- +5 (x)
+'            1---- --4
+'               /
+'              /
+'             /
+'           +5 (z)
+'
+lignes:
+DATA 1,2
+DATA 2,3
+DATA 3,4
+DATA 4,1
+DATA 5,6
+DATA 6,7
+DATA 7,8
+DATA 8,5
+DATA 1,5
+DATA 2,6
+DATA 3,7
+DATA 4,8
+'
+'
+'   Proc‚dure de test de dur‚e d'instructions
+'
+'
+> PROCEDURE t
+  DIM xx&(50)
+  x&=5
+  debut=TIMER
+  FOR i&=1 TO 200
+    '
+    DRAW 50,50 TO 100,100
+    '
+  NEXT i&
+  duree=TIMER-debut
+  PRINT duree
+  ~INP(2)
+  EDIT
+RETURN
